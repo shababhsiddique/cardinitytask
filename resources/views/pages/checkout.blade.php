@@ -52,11 +52,12 @@
                             <strong>@lang('strings.checkout.details')</strong>
                         </div>         
                         <div class="card-body">   
+
                             
                             <div class="form-group">
                                 <div class="row">
                                     <div class="col-12">
-                                        <label for="holder">Card Holder</label>
+                                        <label for="holder">@lang('strings.checkout.holder')</label>
                                         <input type="text" id="holder" required name="holder" class="form-control" value="{{old('holder')}}" >                                
                                         @error('holder')
                                             <small class="text-danger">{{ $message }}</small>
@@ -68,16 +69,19 @@
                             <div class="form-group">
                                 <div class="row">
                                     <div class="col-12">
-                                        <label for="pan">PAN Number</label>
+                                        <label for="pan">@lang('strings.checkout.pan')</label>
                                         <div class="input-group mb-3">     
                                             <input type="text" id="pan" required name="pan" class="form-control" value="{{old('pan')}}" >    
-                                            <span class="input-group-text">Visa</span>                            
+                                            <span class="input-group-text">Visa?</span>                            
                                         </div>
                                         @error('pan')
                                             <small class="text-danger">{{ $message }}</small>
                                         @enderror
-                                        @error('incorrect_pan')
-                                            <small class="text-danger">@lang("validation.incorrect_pan")</small>
+                                        @error('payment_instrument.pan')
+                                            <small class="text-danger">@lang("validation.payment_instrument.pan")</small>
+                                        @enderror
+                                        @error('payment_instrument.card_brand')
+                                            <small class="text-danger">@lang("validation.payment_instrument.card_brand")</small>
                                         @enderror
                                     </div>
                                 </div>
@@ -86,7 +90,7 @@
                             <div class="form-group">
                                 <div class="row">
                                     <div class="col-6">
-                                        <label for="date">Expiry Date</label>
+                                        <label for="date">@lang('strings.checkout.exp')</label>
                                         <div class="input-group mb-3">                                            
                                             <input type="text" id="exp_month" placeholder="mm" required name="exp_month" class="form-control" value="{{old('exp_month')}}">                                            
                                             <span class="input-group-text">/</span>
@@ -105,9 +109,22 @@
                                         @error('cvv')
                                             <small class="text-danger">{{ $message }}</small>
                                         @enderror
+                                        @error('payment_instrument.cvc')
+                                            <small class="text-danger">@lang("validation.payment_instrument.cvc")</small>
+                                        @enderror
                                     </div>      
                                 </div>  
-                            </div> 
+                            </div>
+                            
+                            @error('payment_instrument.unauthorized')
+                                <small class="text-danger">@lang("validation.payment_instrument.unauthorized")</small>
+                            @enderror                              
+                            @error('payment_instrument.declined')
+                                <small class="text-danger">@lang("validation.payment_instrument.declined")</small>
+                            @enderror
+                            @error('payment_instrument.offline')
+                                <small class="text-danger">@lang("validation.payment_instrument.offline")</small>
+                            @enderror
                         </div>
                         <div class="card-footer">
                             <button type="submit" class="btn btn-primary float-right">@lang('strings.checkout.pay') <i class="fa fa-arrow-right pl-3" aria-hidden="true"></i></button>

@@ -39,6 +39,11 @@ return [
     'checkout.pay' => 'Pay',
     'checkout.response' => 'Response',
     'checkout.back' => 'Back to shop',
+    'checkout.holder' => 'Card Holder',
+    'checkout.pan' => 'PAN Number',
+    'checkout.exp' => 'Expiry Date',
+    
+
     
     
 

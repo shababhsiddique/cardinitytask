@@ -135,58 +135,46 @@ class CartController extends Controller
     public function paymentSubmit(Request $request)
     {
 
-        $outputMessage = "";
-     
+        $outputMessage = "";            
 
-        //validate for name and pan
+        //validate general rules
         $request->validate([
             'holder' => 'required|max:32|regex:/^[\pL\s\-]+$/u',   
             'pan'    => 'required|digits:16',
+            'cvv' => 'required|digits_between:3,4',
         ]);
 
+        //secondary validate pan using Luhn algorithm
         $luhnAlgorithmPassed = checkLuhn($request->input('pan'));
         if(!$luhnAlgorithmPassed){
             $request->validate([
-                'incorrect_pan'    => 'required',
+                'payment_instrument.pan'    => 'required',
             ]);
         }
 
-
         //set validation year limits
         $minYear = date('Y');
-        $maxYear = date('Y', strtotime('+50 years'));
+        $maxYear = date('Y', strtotime('+100 years'));
         $request->validate([ 
             'exp_year' => "required|numeric|min:$minYear|max:$maxYear"                        
         ]);
-
 
         //set validation month limits
         $minMonth = ($request->input('exp_year') == $minYear ? date('n') : 1);        
         $request->validate([
             'exp_month' => "required|numeric|min:$minMonth|max:12",
         ]);
-
-
-        //set validation for cvv
-        $cardtype = getCardType($request->input("pan"));
-        if($cardtype == "American Express"){
-            $request->validate([
-                'cvv' => 'required|digits_between:3,4',
-            ]);
-        }else{
-            $request->validate([
-                'cvv' => 'required|digits:3',
-            ]);
-        }
-
-        
-        
         
         //uniq string for id
         $uniqString = strval(time());
+        
+        //prepare api client
+        $client = Client::create([
+            'consumerKey' => env('CARDINITY_KEY'),
+            'consumerSecret' => env('CARDINITY_SECRET')
+        ]);        
 
-
-        //Prepare order data for API and TODO future storage 
+        //Prepare method data for API and TODO: future storage 
         $orderData = [
             'amount' => Cart::getTotal(),
             'currency' => 'EUR',
@@ -203,61 +191,118 @@ class CartController extends Controller
                 'holder' => $request->input('holder'),
             ],
         ];
+        $method = new Payment\Create($orderData);    
 
         
+        
 
-        //prepare api client
-        $client = Client::create([
-            'consumerKey' => 'test_jhcm1kuiowcs2s9dj03vryr4v8yf4e',
-            'consumerSecret' => 'uczqtwmhh2dj1m2vkulspssqisqc2qzjo8v23auqssux4opvag',
-        ]);        
-
-
-        $method = new Payment\Create($orderData);        
-
-
+        //execute payment order method and catch any errors or exceptions
+        $errors = [];
+        $exceptionCode= 0;
+        $errorFields = [];
         try {
 
-            //execute payment order method
-            $payment = $client->call($method);
+            $payment = $client->call($method);                                             
             $status = $payment->getStatus();
 
-            
-            
             if($status == 'approved') {
               // Payment is approved
               $outputMessage = "Payment has been approved";
             }
         
             if($status == 'pending') {
-              // Retrieve information for 3D-Secure authorization
+              // 3D-Secure authorization is required              
               $url = $payment->getAuthorizationInformation()->getUrl();
               $data = $payment->getAuthorizationInformation()->getData();
 
               $outputMessage = "Payment is pending ".$url. " " .$data;
+            }           
+        
+        } catch (\Cardinity\Exception\InvalidAttributeValue $exception) {
+            foreach ($exception->getViolations() as $key => $violation) {
+                array_push($errors, $violation->getPropertyPath() . ' ' . $violation->getMessage());
             }
+            $exceptionCode = $exception->getCode();            
+        } catch (\Cardinity\Exception\ValidationFailed $exception) {
+            foreach ($exception->getErrors() as $key => $error) {                
+                $errorFields[] =  $error['field'];
+                $errors[] =  $error['message'];       
+            }          
 
-            
-        
-        } catch (Exception\Declined $exception) {
-            
-            $errors = $exception->getErrors(); // list of errors occured
-            $outputMessage = "Transaction declined, ".serialize($errors);
+            $exceptionCode = $exception->getCode();
+        } catch (\Cardinity\Exception\Declined $exception) {
+            foreach ($exception->getErrors() as $key => $error) {
+                array_push($errors, $error['message']);
+            }
+            $exceptionCode = $exception->getCode();
+        } catch (\Cardinity\Exception\NotFound $exception) {
+            foreach ($exception->getErrors() as $key => $error) {
+                array_push($errors, $error['message']);
+            }
+            $exceptionCode = $exception->getCode();
+        } catch (\Exception $exception) {
+            foreach ($exception->getErrors() as $key => $error) {
+                array_push($errors, $error['message']);
+                
+            }
+            $exceptionCode = $exception->getCode();       
 
-        } catch (Exception\ValidationFailed $exception) {
+            echo  $exception->getCode();
+             
             
-            $errors = $exception->getErrors(); // list of errors occured
-            $outputMessage = "Validation failed, ".serialize($errors);
+        }       
 
-        } catch (Exception $exception) {            
+        //if there is error, 
+        if ($exceptionCode != 0) {
+            //trigger appropriate validation
+            switch ($exceptionCode) {                
+                case 400:
+                    //invalid format                     
+                    foreach($errorFields as $anErrorField){
+                        if($anErrorField == "{CARD_BRAND}"){
+                            $request->validate([
+                                "payment_instrument.card_brand"  => 'required',
+                            ]);
+                        }else{                            
+                            $request->validate([
+                                $anErrorField    => 'required',
+                            ]);
+                        }                                                
+                    }             
+                    break;
             
-            $errors = $exception->getErrors(); // list of errors occured
-            $outputMessage = "Transaction failed, ".serialize($errors);
+                case 401:
+                    //Unauthorized    
+                    $request->validate([
+                        "payment_instrument.unauthorized"  => 'required',
+                    ]);
+                    break;
 
+                case 402:
+                    //Declined
+                    $request->validate([
+                          "payment_instrument.declined"  => 'required',
+                    ]);
+                    break;
+
+                case 500:
+                    //Server error
+                    $request->validate([
+                       "payment_instrument.offline"  => 'required',
+                    ]);    
+                    break;
+
+                case 503:
+                    //Service offline
+                    $request->validate([
+                        "payment_instrument.offline"  => 'required',
+                    ]);    
+                    break;
+                    
+                default:                    
+                    break;
+            }                    
         }
-
-
-        
 
 
         //Load Component

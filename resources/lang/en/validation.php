@@ -120,7 +120,15 @@ return [
 
 
 
-    'incorrect_pan' => 'The PAN number is invalid.',
+    'payment_instrument.pan' => 'The PAN number is invalid.',
+    'payment_instrument.cvc' => 'The CVV number is invalid.',
+    'payment_instrument.card_brand' => 'The card provider brand is not supported',
+    'payment_instrument.unauthorized' => 'API authorization information was missing or wrong, check .env.', //401
+    'payment_instrument.declined' => 'Request was valid but transaction was declined.', //402
+    'payment_instrument.offline' => 'We are temporarily off-line.',  //500 503
+    
+
+    
 
     /*
     |--------------------------------------------------------------------------

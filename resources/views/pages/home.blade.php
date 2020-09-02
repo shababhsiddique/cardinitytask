@@ -1,9 +1,9 @@
 @extends('master')
 
 @section('content')
-    <div>
+    <div class="col-md-10 col-sm-12 mx-auto">
 
-        <h1 class="my-5">@lang('strings.shop')</h1>
+        <h1 class="my-5 text-center">@lang('strings.shop')</h1>
 
         <!-- prouct list -->
         <ul class="list-group shadow">
@@ -18,15 +18,12 @@
                             <h6 class="font-weight-bold my-2">{{number_format($product->price, 2)}} @lang("strings.currency")</h6>
                         </div>
                         <div class="col">
-                            <h4>&nbsp;</h4>
                             
-                            <button type="button" class="btn btn-primary float-right" 
-                                @if($product->quantity <= 0)
-                                    disabled 
-                                @endif>
+                            
+                            <a href="{{url('cart/add/'.$product->product_id)}}" class="btn btn-primary float-right" >
                                 <i class="fa fa-cart-plus mr-2" aria-hidden="true"></i>
                                 <strong>@lang('strings.shop.addcart')</strong>
-                            </button>
+                            </a>
                             
                         </div>
                     </div> <!-- End -->

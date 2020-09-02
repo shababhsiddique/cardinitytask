@@ -14,6 +14,21 @@ use Illuminate\Support\Facades\Route;
 */
 
 
+
+//Shop routes
 Route::get('/', 'ShopController@index');
 
-Route::get('/cart', 'ShopController@cart');
+
+
+//Cart routes
+Route::get('/cart', 'CartController@index');
+Route::get('/cart/add/{id}', 'CartController@add');
+Route::get('/cart/remove/{id}', 'CartController@remove');
+
+Route::post('/cart/update', 'CartController@update');
+
+Route::get('/cart/pay', 'CartController@payment');
+Route::post('/cart/pay/submit', 'CartController@paymentSubmit');
+
+
+

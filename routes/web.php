@@ -14,21 +14,25 @@ use Illuminate\Support\Facades\Route;
 */
 
 
+Route::group(['middleware' => ['web']], function () {
+    //Shop routes
+    Route::get('/', 'ShopController@index');
 
-//Shop routes
-Route::get('/', 'ShopController@index');
+
+    //Cart routes
+    Route::get('/cart', 'CartController@index');
+    Route::get('/cart/add/{id}', 'CartController@add');
+    Route::get('/cart/remove/{id}', 'CartController@remove');
+
+    Route::post('/cart/update', 'CartController@update');
+
+    Route::get('/cart/pay', 'CartController@payment');
+    Route::post('/cart/pay/submit', 'CartController@paymentSubmit');
+    Route::post('/cart/pay/3dscallback', 'CartController@paymentCallback');
+
+});
 
 
-
-//Cart routes
-Route::get('/cart', 'CartController@index');
-Route::get('/cart/add/{id}', 'CartController@add');
-Route::get('/cart/remove/{id}', 'CartController@remove');
-
-Route::post('/cart/update', 'CartController@update');
-
-Route::get('/cart/pay', 'CartController@payment');
-Route::post('/cart/pay/submit', 'CartController@paymentSubmit');
 
 
 

@@ -71,7 +71,7 @@
                                     <div class="col-12">
                                         <label for="pan">@lang('strings.checkout.pan')</label>
                                         <div class="input-group mb-3">     
-                                            <input type="text" id="pan" required name="pan" class="form-control" value="{{old('pan')}}" >    
+                                            <input type="text" id="pan" required name="pan" class="form-control" value="{{old('pan', '5454545454545454')}}" >    
                                             <span class="input-group-text">Visa?</span>                            
                                         </div>
                                         @error('pan')
@@ -116,6 +116,9 @@
                                 </div>  
                             </div>
                             
+                            @error('payment_instrument.fields')
+                                <small class="text-danger">@lang("validation.payment_instrument.cvc")</small>
+                            @enderror
                             @error('payment_instrument.unauthorized')
                                 <small class="text-danger">@lang("validation.payment_instrument.unauthorized")</small>
                             @enderror                              

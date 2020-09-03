@@ -13,31 +13,32 @@
     <!-- FontAwesome CSS -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">    
 
-
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css" integrity="sha512-mSYUmp1HYZDFaVKK//63EcZq4iFWFjxSL+Z3T/aCt4IO9Cejm03q3NKKYN6pFQzY0SBOr8h+eCIAZHPXcpZaNw==" crossorigin="anonymous" />      
-    
-
-    <title>@lang('strings.title')</title>
+    <title>@lang('strings.title')</title>    
   </head>
 
   <body>
 
     <!-- common menu -->
     <div class="d-flex flex-column flex-md-row align-items-center p-3 px-md-4 mb-3 bg-white border-bottom shadow-sm">
-      <h5 class="my-0 mr-md-auto font-weight-normal">@lang('strings.shop')</h5>
+      <h5 class="my-0 mr-md-auto font-weight-normal">
+        <a href="{{url('/')}}">@lang('strings.shop')</a>
+      </h5>
       <nav class="my-2 my-md-0 mr-md-3">
-        <a class="p-2 text-dark" href="{{url('/')}}">Home</a>
+        <a class="p-2 text-dark" href="{{url('/')}}">@lang('strings.home')</a>
       </nav>
-      <a class="btn btn-outline-primary" href="{{url('/cart')}}">Cart</a>
+      <a class="btn btn-outline-primary" href="{{url('/cart')}}">@lang('strings.cart')</a>
     </div>
     <!-- common menu -->
-
-    <div class="container">      
-
+    
+    <div class="container">       
+          
+      <!--notification toast-->
+      @yield('notification')
+      <!--notification toast -->      
+      
       <!--site content-->
       @yield('content')
       <!--site content-->
-
     </div>
 
     <!-- jQuery first, then Popper.js, then Bootstrap JS -->
@@ -45,8 +46,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
 
-
-       
+          
+    @stack('footer-scripts')
   </body>
 
 </html>

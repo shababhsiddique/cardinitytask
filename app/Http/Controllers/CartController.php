@@ -4,16 +4,26 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Cart;
 use Cardinity\Client;
 use Cardinity\Method\Payment;
 use Validator;
+use Illuminate\Support\Facades\Redis;
 
 class CartController extends Controller
 {
     //Layout holder
-    private $layout;
-    private $sessionId;
+    private $layout;    
+    private $redis;
+
+
+    //build common layout components
+    public function __construct()
+    {
+        $this->layout['notification'] = view('common.notification');
+        $this->redis = new Redis();
+    }
 
 
     public function index()
@@ -54,6 +64,11 @@ class CartController extends Controller
             ));
         }
 
+        $request->session()->put('notification', array(
+            'title' => "Added to cart",
+            'body'  => "Product $product->name has been added to cart",
+            'type'  => "primary"
+        ));
 
         return redirect('/');
     }
@@ -64,6 +79,12 @@ class CartController extends Controller
         //remove cart item if exist
         $productInCart = Cart::remove($productId);
 
+        $request->session()->put('notification', array(
+            'title' => "Removed",
+            'body'  => "Product has been removed from cart",
+            'type'  => "primary"
+        ));
+
         return redirect('/cart');
     }
 
@@ -71,6 +92,10 @@ class CartController extends Controller
     //TODO: update over ajax
     public function update(Request $request)
     {
+        $request->validate([
+            'rowId' => 'required',    //atleast 1 row required on cart
+        ]);
+
         $action = $request->input('action');
 
         //prepare post data        
@@ -113,6 +138,13 @@ class CartController extends Controller
             return redirect('/cart/pay');
         }
 
+        
+        $request->session()->put('notification', array(
+            'title' => "Cart items updated",
+            'body'  => "Items quantities updated on cart",
+            'type'  => "primary"
+        ));
+
         return redirect('/cart');
     }
 
@@ -131,11 +163,40 @@ class CartController extends Controller
         return view('master', $this->layout);
     }
 
+
+    /**
+     * Common operations used in different cases of purchase
+     */
+    private function cleanupAfterPayment(Request $request){
+
+         //empty cart
+         $sessionId =  $request->session()->get('_token');
+         Cart::session($sessionId)->clear();
+         //Cart::clear();
+
+         //flush and regenrate session
+         $request->session()->flush();
+         $request->session()->regenerate();
+         
+        
+        $request->session()->put('notification', array(
+            'title' => "Success",
+            'body'  => "Your purchase request is complete",
+            'type'  => "success"
+        ));
+    }
     
+
     public function paymentSubmit(Request $request)
     {
 
-        $outputMessage = "";            
+              
+        $status = "";
+        $outputMessage = ""; 
+        $secure3dObj = [];  
+        
+        $mainContent = "";
+
 
         //validate general rules
         $request->validate([
@@ -154,7 +215,7 @@ class CartController extends Controller
 
         //set validation year limits
         $minYear = date('Y');
-        $maxYear = date('Y', strtotime('+100 years'));
+        $maxYear = date('Y', strtotime('+1000 years'));
         $request->validate([ 
             'exp_year' => "required|numeric|min:$minYear|max:$maxYear"                        
         ]);
@@ -166,7 +227,8 @@ class CartController extends Controller
         ]);
         
         //uniq string for id
-        $uniqString = strval(time());
+        $uniqString =  (string) ( uniqid() .  md5(uniqid()) );
+                              
         
         //prepare api client
         $client = Client::create([
@@ -192,7 +254,7 @@ class CartController extends Controller
             ],
         ];
         $method = new Payment\Create($orderData);    
-
+        
         
         
 
@@ -208,15 +270,41 @@ class CartController extends Controller
             if($status == 'approved') {
               // Payment is approved
               $outputMessage = "Payment has been approved";
+
+
+              //Common post purchase actions
+              $this->cleanupAfterPayment($request);
+
+              $mainContent = view('pages.status')
+                ->with('output', $outputMessage);
+
             }
         
             if($status == 'pending') {
-              // 3D-Secure authorization is required              
-              $url = $payment->getAuthorizationInformation()->getUrl();
-              $data = $payment->getAuthorizationInformation()->getData();
 
-              $outputMessage = "Payment is pending ".$url. " " .$data;
-            }           
+                // 3D-Secure authorization is required              
+                $url = $payment->getAuthorizationInformation()->getUrl();
+                $data = $payment->getAuthorizationInformation()->getData();
+
+                $outputMessage = "Payment is pending, additional action required";
+
+                $paymentId = $payment->getId();
+                Redis::set('payment_id', $paymentId);
+
+                $secure3dObj = [
+                    'Url3dSForm' => $payment->getAuthorizationInformation()->getUrl(),
+                    'PaReq' => $payment->getAuthorizationInformation()->getData(),
+                    'TermUrl' => url('/cart/pay/3dscallback'),                  
+                    'identifier' => $paymentId,                  
+                ];
+
+                $mainContent = view('pages.secure3d')
+                    ->with('output', $outputMessage)
+                    ->with('secure3dObj', $secure3dObj);
+
+            }    
+            
+            
         
         } catch (\Cardinity\Exception\InvalidAttributeValue $exception) {
             foreach ($exception->getViolations() as $key => $violation) {
@@ -245,10 +333,7 @@ class CartController extends Controller
                 array_push($errors, $error['message']);
                 
             }
-            $exceptionCode = $exception->getCode();       
-
-            echo  $exception->getCode();
-             
+            $exceptionCode = $exception->getCode();                                
             
         }       
 
@@ -263,9 +348,13 @@ class CartController extends Controller
                             $request->validate([
                                 "payment_instrument.card_brand"  => 'required',
                             ]);
-                        }else{                            
+                        }elseif($anErrorField == 'payment_instrument.cvc'){
                             $request->validate([
-                                $anErrorField    => 'required',
+                                'payment_instrument.cvc' => 'required',
+                            ]);
+                        }else{                                      
+                            $request->validate([
+                                'payment_instrument.fields'    => 'required',
                             ]);
                         }                                                
                     }             
@@ -301,18 +390,125 @@ class CartController extends Controller
                     
                 default:                    
                     break;
-            }                    
+            }   
+            
+            
+            $mainContent = view('pages.status')
+                ->with('output', "Unknown Exception occured");
         }
-
+        
+        
 
         //Load Component
-        $this->layout['content'] = view('pages.confirm')
-            ->with('output', $outputMessage);
+       /* $this->layout['content'] = view('pages.status')
+            ->with('output', $outputMessage)
+            ->with('secure3dObj', $secure3dObj);*/
+
+
+        //load component
+        $this->layout['content'] = $mainContent;
 
         //return view
         return view('master', $this->layout);
     }
 
 
+
+    public function paymentCallback(Request $request){
+
+        //validate callback from API
+        $request->validate([
+            "MD"  => 'required',
+            "PaRes" => 'required',
+        ]);  
+
+
+        $message = "";
+        $exceptionCode = 0;
+        $notification = [];
+
+        //get session identifier from Redis, 
+        //session cookie unavailable since we are here from a redirect by cardinity API              
+        $paymentId = Redis::get("payment_id");        
+        
+        if($paymentId == $request->input("MD")){
+            
+            $PaRes = $request->input("PaRes");
+
+            //this is usual callback from cardinity API
+            $client = Client::create([
+                'consumerKey' => env('CARDINITY_KEY'),
+                'consumerSecret' => env('CARDINITY_SECRET')
+            ]);   
+
+            //finalize payment 
+            $method = new Payment\Finalize($paymentId, $PaRes );            
+            
+            try {               
+                
+                $payment = $client->call($method);
+
+                //common post purchase operations
+                $this->cleanupAfterPayment($request);  
+                
+                $message = "Transaction successful";
+                $notification = [
+                    'title' => $message,
+                    'body'  =>  "Purchase transaction secured",
+                    'type'  => "success"
+                ];                
+
+            } catch (\Exception $exception) {    
+
+                //TODO
+                $exceptionCode =  $exception->getCode();     
+                switch ($exceptionCode) {
+                    
+                    case 402:
+                        $message = "Your request was valid but it was declined.";
+                        break;
+                    
+                    default:
+                        $message = $exception->getMessage();
+                        break;
+                }   
+                
+                $notification = [
+                    'title' => "Exception occured",
+                    'body'  =>  $message,
+                    'type'  => "danger"
+                ];
+                
+
+          
+            }   
+            
+        }else{
+            $notification = [
+                'title' => "Something went wrong",
+                'body'  => "Payment ID mismatch",
+                'type'  => "danger"
+            ];
+
+          
+        }
+
+        $request->session()->put('notification', $notification);        
+
+        //return redirect('/');
+
+
+        //Load Component
+        $this->layout['content'] = view('pages.status')
+           ->with('output', $message);
+
+
+       //return view
+       return view('master', $this->layout);
+        
+    }
+
+
     
 }
+

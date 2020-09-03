@@ -13,6 +13,13 @@ class ShopController extends Controller
   private $sessionId;
 
 
+  //build common layout components
+  public function __construct()
+  {
+    $this->layout['notification'] = view('common.notification');
+  }
+
+
   public function index(Request $request)
   {
 
@@ -24,7 +31,6 @@ class ShopController extends Controller
     //Load Component
     $this->layout['content'] = view('pages.home')
       ->with('products', $products);
-
 
 
     //return view

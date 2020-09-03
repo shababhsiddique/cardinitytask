@@ -46,7 +46,14 @@
                                     </td>
                                 </tr>
                             @endforeach  
-                    </table>                    
+                            @error('rowId')
+                            <tr>
+                                <td colspan="5">
+                                    <strong class="text-danger">@lang('strings.cart.empty_error')</strong>
+                                </td>
+                            </tr>                                
+                            @enderror      
+                    </table>                                  
                 </div>
 
                 <div class="card-footer">

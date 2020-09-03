@@ -11,11 +11,13 @@ return [
     |
     */
 
-    //home
+    //common
     'title' => 'Cardinity Test Task',
     'shop' => 'Shop',    
     'welcome' => 'Welcome',
     'currency' => 'EUR',
+    'home' => 'Home',
+    'click_here' => 'Click Here',
 
     //shop
     'shop' => 'Products',    
@@ -32,6 +34,7 @@ return [
     'cart.total' => 'Total :',
     'cart.update' => 'Update',
     'cart.checkout' => 'Update & Checkout',
+    'cart.empty_error' => 'There are no items on cart',
 
     //checkout
     'checkout' => 'Checkout',
@@ -42,7 +45,16 @@ return [
     'checkout.holder' => 'Card Holder',
     'checkout.pan' => 'PAN Number',
     'checkout.exp' => 'Expiry Date',
+
+    //3ds
+    '3ds.redirect' => 'Browser will redirect to validation',
+    '3ds.redirect_fail' => 'If browser does not redirect in 3 seconds, ',
     
+    //status
+    'status' => 'Payment Status',
+
+
+
 
     
     

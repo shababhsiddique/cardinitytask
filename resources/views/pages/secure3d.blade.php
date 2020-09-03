@@ -9,10 +9,11 @@
             <div class="card-header">
                 <strong>@lang('strings.status')</strong>
             </div>         
-            <div class="card-body">                
-                {{$output}}
+            <div class="card-body text-center">   
+                    <i class="{{$icon}} fa-4x"></i>
+                    <h5>{{$output}}</h5>          
                     @if($secure3dObj)
-                    <h3>@lang('strings.3ds.redirect')</h3>
+                    <h4>@lang('strings.3ds.redirect')</h4>
                     <?php 
                     echo "Payment ID .$secure3dObj[identifier]";
                     ?>
@@ -37,14 +38,13 @@
     @if($secure3dObj)
         <script type="text/javascript">
 
-            // Make the form post as soon as it has been loaded.
+            // Make the form post after 2 min
             $(document).ready(function() {    
                 window.setTimeout(function() {
                     document.ThreeDForm.submit();
-                }, 2500);
+                }, 2000);
             });     
 
-        </script>
-        
+        </script>        
     @endif
 @endpush

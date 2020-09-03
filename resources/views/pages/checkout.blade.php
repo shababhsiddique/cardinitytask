@@ -71,8 +71,8 @@
                                     <div class="col-12">
                                         <label for="pan">@lang('strings.checkout.pan')</label>
                                         <div class="input-group mb-3">     
-                                            <input type="text" id="pan" required name="pan" class="form-control" value="{{old('pan', '5454545454545454')}}" >    
-                                            <span class="input-group-text">Visa?</span>                            
+                                            <input type="text" id="pan" required name="pan" class="form-control" value="{{old('pan')}}" >    
+                                            <span id="card_type" class="input-group-text"></span>                            
                                         </div>
                                         @error('pan')
                                             <small class="text-danger">{{ $message }}</small>
@@ -117,17 +117,8 @@
                             </div>
                             
                             @error('payment_instrument.fields')
-                                <small class="text-danger">@lang("validation.payment_instrument.cvc")</small>
-                            @enderror
-                            @error('payment_instrument.unauthorized')
-                                <small class="text-danger">@lang("validation.payment_instrument.unauthorized")</small>
-                            @enderror                              
-                            @error('payment_instrument.declined')
-                                <small class="text-danger">@lang("validation.payment_instrument.declined")</small>
-                            @enderror
-                            @error('payment_instrument.offline')
-                                <small class="text-danger">@lang("validation.payment_instrument.offline")</small>
-                            @enderror
+                                <small class="text-danger">@lang("validation.payment_instrument.fields")</small>
+                            @enderror                           
                         </div>
                         <div class="card-footer">
                             <button type="submit" class="btn btn-primary float-right">@lang('strings.checkout.pay') <i class="fa fa-arrow-right pl-3" aria-hidden="true"></i></button>
@@ -138,3 +129,31 @@
         </div>
     </div>
 @endsection
+
+
+@push('footer-scripts')
+    <script type="text/javascript">
+
+        function creditCardTypeFromNumber(num) {
+            // first, sanitize the number by removing all non-digit characters.
+            num = num.replace(/[^\d]/g,'');
+            // now test the number against some regexes to figure out the card type.
+            if (num.match(/^5[1-5]\d{14}$/)) {
+                return 'MasterCard';
+            } else if (num.match(/^4\d{15}/) || num.match(/^4\d{12}/)) {
+                return 'Visa';
+            } else if (num.match(/^3[47]\d{13}/)) {
+                return 'AmEx';
+            } else if (num.match(/^6011\d{12}/)) {
+                return 'Discover';
+            }
+            return 'UNKNOWN';
+        }
+
+        //Check 
+        $('#pan').keyup(function() {
+            $('#card_type').text(creditCardTypeFromNumber($(this).val()));
+        });    
+
+    </script>
+@endpush

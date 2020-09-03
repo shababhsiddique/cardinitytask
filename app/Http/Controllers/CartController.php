@@ -21,8 +21,7 @@ class CartController extends Controller
     //build common layout components
     public function __construct()
     {
-        $this->layout['notification'] = view('common.notification');
-        $this->redis = new Redis();
+        $this->layout['notification'] = view('common.notification');        
     }
 
 
@@ -62,13 +61,22 @@ class CartController extends Controller
                 'quantity' => 1,
                 'associatedModel' => $product
             ));
-        }
+            
+            $request->session()->put('notification', array(
+                'title' => "Added to cart",
+                'body'  => "Product $product->name has been added to cart",
+                'type'  => "primary"
+            ));
 
-        $request->session()->put('notification', array(
-            'title' => "Added to cart",
-            'body'  => "Product $product->name has been added to cart",
-            'type'  => "primary"
-        ));
+        }else{
+            
+            $request->session()->put('notification', array(
+                'title' => "Cannot add product",
+                'body'  => "Product $product->name has reached limit",
+                'type'  => "info"
+            ));
+
+        }
 
         return redirect('/');
     }
@@ -107,6 +115,9 @@ class CartController extends Controller
         $products = Product::whereIn('product_id', $updateItemIds)->get()->keyBy('product_id');
 
 
+        $numberOfItemsUpdated = 0;
+        $numberOfItemsDeleted = 0;
+
         foreach ($updateItemIds as $index => $id) {
 
             //relevant cart item if exist
@@ -117,34 +128,41 @@ class CartController extends Controller
             //cap the quantity if above stock
             $targetQuantity = ($targetQuantity >= $products[$id]->quantity ? $products[$id]->quantity : $targetQuantity);
 
-
-            //delete if set qty 0
             if ($targetQuantity == 0) {
+                //delete if set qty 0
                 Cart::remove($id);
-            }
-            //dont update if out of stock
-            else{
+                $numberOfItemsDeleted++;
+            }else if($productInCart['quantity'] != $targetQuantity){
+                //target quantity needs change
                 Cart::update($id, array(
                     'quantity' => array(
                         'relative' => false,
                         'value' => $targetQuantity
                     ),
                 ));
+                $numberOfItemsUpdated++;
             }
         }
 
-
+        //came here by checkout
         if($action == "checkout"){
             return redirect('/cart/pay');
         }
-
         
-        $request->session()->put('notification', array(
-            'title' => "Cart items updated",
-            'body'  => "Items quantities updated on cart",
-            'type'  => "primary"
-        ));
+        if($numberOfItemsUpdated+$numberOfItemsDeleted){
 
+            $mBody = ( $numberOfItemsUpdated ? "$numberOfItemsUpdated rows updated " : "");
+            $mBody .= ( $numberOfItemsDeleted ? "$numberOfItemsDeleted rows deleted" : "");
+
+            $request->session()->put('notification', array(
+                'title' => "Cart items updated",
+                'body'  =>  $mBody,
+                'type'  => "primary"
+            ));
+        }
+        
+
+        //came here by update
         return redirect('/cart');
     }
 
@@ -192,6 +210,7 @@ class CartController extends Controller
 
               
         $status = "";
+        $outputIcon = ""; 
         $outputMessage = ""; 
         $secure3dObj = [];  
         
@@ -201,7 +220,7 @@ class CartController extends Controller
         //validate general rules
         $request->validate([
             'holder' => 'required|max:32|regex:/^[\pL\s\-]+$/u',   
-            'pan'    => 'required|digits:16',
+            'pan'    => 'required|digits_between:13,19',
             'cvv' => 'required|digits_between:3,4',
         ]);
 
@@ -227,8 +246,7 @@ class CartController extends Controller
         ]);
         
         //uniq string for id
-        $uniqString =  (string) ( uniqid() .  md5(uniqid()) );
-                              
+        $uniqString =  (string) ( uniqid() .  md5(uniqid()) );                             
         
         //prepare api client
         $client = Client::create([
@@ -254,39 +272,40 @@ class CartController extends Controller
             ],
         ];
         $method = new Payment\Create($orderData);    
-        
-        
-        
+
 
         //execute payment order method and catch any errors or exceptions
-        $errors = [];
-        $exceptionCode= 0;
+        $exceptionCode= -1;
         $errorFields = [];
         try {
 
             $payment = $client->call($method);                                             
             $status = $payment->getStatus();
 
+            
             if($status == 'approved') {
-              // Payment is approved
-              $outputMessage = "Payment has been approved";
 
+              // Payment is approved
+              $outputIcon = "text-success fa fa-check-circle-o";   
+              $outputMessage = "Payment successful";   
 
               //Common post purchase actions
               $this->cleanupAfterPayment($request);
 
               $mainContent = view('pages.status')
-                ->with('output', $outputMessage);
+                ->with('output', $outputMessage)
+                ->with('icon', $outputIcon);
 
             }
         
             if($status == 'pending') {
 
-                // 3D-Secure authorization is required              
-                $url = $payment->getAuthorizationInformation()->getUrl();
-                $data = $payment->getAuthorizationInformation()->getData();
+                // 3D-Secure authorization is required   \
+                $outputIcon =  "text-primary fa fa-cog";   
+                $outputMessage = "3DSecure action required";   
 
-                $outputMessage = "Payment is pending, additional action required";
+                $url = $payment->getAuthorizationInformation()->getUrl();
+                $data = $payment->getAuthorizationInformation()->getData();                
 
                 $paymentId = $payment->getId();
                 Redis::set('payment_id', $paymentId);
@@ -300,49 +319,60 @@ class CartController extends Controller
 
                 $mainContent = view('pages.secure3d')
                     ->with('output', $outputMessage)
+                    ->with('icon', $outputIcon)
                     ->with('secure3dObj', $secure3dObj);
 
-            }    
-            
-            
+            }                
         
-        } catch (\Cardinity\Exception\InvalidAttributeValue $exception) {
-            foreach ($exception->getViolations() as $key => $violation) {
-                array_push($errors, $violation->getPropertyPath() . ' ' . $violation->getMessage());
-            }
-            $exceptionCode = $exception->getCode();            
-        } catch (\Cardinity\Exception\ValidationFailed $exception) {
+        //Catch any possible exception
+        } catch (\Cardinity\Exception\ValidationFailed $exception) {            
+            $exceptionCode = $exception->getCode();                        
             foreach ($exception->getErrors() as $key => $error) {                
                 $errorFields[] =  $error['field'];
-                $errors[] =  $error['message'];       
-            }          
+            }  
+        } catch (\Exception $exception) {            
+           $exceptionCode = $exception->getCode();
+        }     
 
-            $exceptionCode = $exception->getCode();
-        } catch (\Cardinity\Exception\Declined $exception) {
-            foreach ($exception->getErrors() as $key => $error) {
-                array_push($errors, $error['message']);
-            }
-            $exceptionCode = $exception->getCode();
-        } catch (\Cardinity\Exception\NotFound $exception) {
-            foreach ($exception->getErrors() as $key => $error) {
-                array_push($errors, $error['message']);
-            }
-            $exceptionCode = $exception->getCode();
-        } catch (\Exception $exception) {
-            foreach ($exception->getErrors() as $key => $error) {
-                array_push($errors, $error['message']);
-                
-            }
-            $exceptionCode = $exception->getCode();                                
-            
-        }       
 
         //if there is error, 
-        if ($exceptionCode != 0) {
+        if ($exceptionCode != -1) {
+
+            $exceptionMessage = "Unknown exception occured";   
+            $outputIcon =  "text-danger fa fa-exclamation-triangle";
+            
             //trigger appropriate validation
-            switch ($exceptionCode) {                
+            switch ($exceptionCode) { 
+                         
+                case 0: 
+                    
+                    //will never come here if we supply the API proper numbers
+                    //card number properly checked by luhn
+                    //ccv,cvv right digits, year month within limits etc.
+
+                    $notification = [
+                        'title' => "Incorrect format",
+                        'body'  => "Information provided is not formatted correctly",
+                        'type'  => "warning"
+                    ];       
+                    $request->session()->put('notification', $notification);    
+
+                    //invalid format re render form
+                    $request->validate([
+                        'payment_instrument.fields'    => 'required',
+                    ]);        
+                    break;
+                
                 case 400:
-                    //invalid format                     
+
+                    $notification = [
+                        'title' => "Invalid Data",
+                        'body'  => "Your payment credentials are invalid, please check ".serialize($errorFields),
+                        'type'  => "warning"
+                    ];       
+                    $request->session()->put('notification', $notification);    
+
+                    //invalid data re render form
                     foreach($errorFields as $anErrorField){
                         if($anErrorField == "{CARD_BRAND}"){
                             $request->validate([
@@ -361,48 +391,65 @@ class CartController extends Controller
                     break;
             
                 case 401:
-                    //Unauthorized    
-                    $request->validate([
-                        "payment_instrument.unauthorized"  => 'required',
-                    ]);
+                    //Unauthorized API
+                    $notification = [
+                        'title' => "Gateway API not authorized",
+                        'body'  => "Incorrect API key or secret",
+                        'type'  => "danger"
+                    ];       
+                    $request->session()->put('notification', $notification);                
                     break;
 
                 case 402:
                     //Declined
-                    $request->validate([
-                          "payment_instrument.declined"  => 'required',
-                    ]);
+                    $notification = [
+                        'title' => "Declined",
+                        'body'  => "Transaction request was valid but declined",
+                        'type'  => "warning"
+                    ];       
+                    $request->session()->put('notification', $notification); 
+                    $exceptionMessage = "Declined";   
+                    $outputIcon = "text-warning fa fa-exclamation-triangle";   
+                    break;
+                
+                case 403:
+                case 404:
+                case 405:
+                case 406:
+                    //Notfound/Notccessible
+                    $notification = [
+                        'title' => "Unable to process",
+                        'body'  => "The request you wanted to access is either forbidden or not found",
+                        'type'  => "warning"
+                    ];       
+                    $request->session()->put('notification', $notification);    
                     break;
 
                 case 500:
-                    //Server error
-                    $request->validate([
-                       "payment_instrument.offline"  => 'required',
-                    ]);    
-                    break;
-
                 case 503:
-                    //Service offline
-                    $request->validate([
-                        "payment_instrument.offline"  => 'required',
-                    ]);    
+                    //Service offline or error
+                    $notification = [
+                        'title' => "Unable to Connect",
+                        'body'  => "Unable to reach API gateway",
+                        'type'  => "warning"
+                    ];       
+                    $request->session()->put('notification', $notification);    
                     break;
                     
-                default:                    
+                default:  
+                    $notification = [
+                        'title' => "Unknown error occured",
+                        'body'  => "Unable to complete transaction",
+                        'type'  => "warning"
+                    ];       
+                    $request->session()->put('notification', $notification);                     
                     break;
-            }   
-            
+            }               
             
             $mainContent = view('pages.status')
-                ->with('output', "Unknown Exception occured");
+                ->with('output', $exceptionMessage)
+                ->with('icon',$outputIcon);
         }
-        
-        
-
-        //Load Component
-       /* $this->layout['content'] = view('pages.status')
-            ->with('output', $outputMessage)
-            ->with('secure3dObj', $secure3dObj);*/
 
 
         //load component
@@ -451,6 +498,7 @@ class CartController extends Controller
                 //common post purchase operations
                 $this->cleanupAfterPayment($request);  
                 
+                $outputIcon = "text-success fa fa-check-circle-o";   
                 $message = "Transaction successful";
                 $notification = [
                     'title' => $message,
@@ -473,10 +521,11 @@ class CartController extends Controller
                         break;
                 }   
                 
+                $outputIcon = "text-warning fa fa-exclamation-triangle";   
                 $notification = [
                     'title' => "Exception occured",
                     'body'  =>  $message,
-                    'type'  => "danger"
+                    'type'  => "warning"
                 ];
                 
 
@@ -484,13 +533,12 @@ class CartController extends Controller
             }   
             
         }else{
+            $outputIcon = "text-danger fa fa-exclamation-triangle";   
             $notification = [
                 'title' => "Something went wrong",
                 'body'  => "Payment ID mismatch",
                 'type'  => "danger"
-            ];
-
-          
+            ];          
         }
 
         $request->session()->put('notification', $notification);        
@@ -500,7 +548,8 @@ class CartController extends Controller
 
         //Load Component
         $this->layout['content'] = view('pages.status')
-           ->with('output', $message);
+           ->with('output', $message)
+           ->with('icon',$outputIcon);
 
 
        //return view

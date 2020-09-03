@@ -9,8 +9,9 @@
             <div class="card-header">
                 <strong>@lang('strings.status')</strong>
             </div>         
-            <div class="card-body">                
-                {{$output}}            
+            <div class="card-body text-center">                
+                <i class="{{$icon}} fa-4x"></i>
+                <h5>{{$output}}</h5>
             </div>
             <div class="card-footer">
                 <a href="{{url('/')}}" class="btn btn-primary float-right">@lang('strings.checkout.back') <i class="fa fa-cart pl-3"></i></a>

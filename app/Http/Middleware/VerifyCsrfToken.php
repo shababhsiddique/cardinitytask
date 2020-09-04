@@ -13,6 +13,6 @@ class VerifyCsrfToken extends Middleware
      */
     protected $except = [
         'https://acs.cardinity.com/',
-        'http://cardinitytask.test/cart/pay/3dscallback',
+        'cart/pay/3dscallback',
     ];
 }

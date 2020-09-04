@@ -81,8 +81,8 @@ class PageTest extends TestCase
 
         foreach ($products as $product) {
             $response->assertSee($product->name);
-            $response->assertSee($product->price);
-            $response->assertSee($product->price);
+            $response->assertSee(number_format($product->price, 0));
+            $response->assertSee(number_format($product->price * 2, 0));
         }
     }
 
@@ -110,8 +110,8 @@ class PageTest extends TestCase
 
         foreach ($products as $product) {
             $response->assertSee($product->name);
-            $response->assertSee($product->price);
-            $response->assertSee($product->price);
+            $response->assertSee(number_format($product->price, 0));
+            $response->assertSee(number_format($product->price * 2, 0));;
         }
     }
 }

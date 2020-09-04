@@ -9,13 +9,13 @@ use Cart;
 use Cardinity\Client;
 use Cardinity\Method\Payment;
 use Validator;
-use Illuminate\Support\Facades\Redis;
+//use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Cache;
 
 class CartController extends Controller
 {
     //Layout holder
     private $layout;    
-    private $redis;
 
 
     //build common layout components
@@ -321,7 +321,8 @@ class CartController extends Controller
                 $data = $payment->getAuthorizationInformation()->getData();                
 
                 $paymentId = $payment->getId();
-                Redis::set('payment_id', $paymentId);
+                Cache::put($paymentId, true, now()->addMinutes(5)); 
+                //Redis::set('payment_id', $paymentId);
 
                 $secure3dObj = [
                     'Url3dSForm' => $payment->getAuthorizationInformation()->getUrl(),
@@ -364,7 +365,7 @@ class CartController extends Controller
                     //ccv,cvv right digits, year month within limits etc.
 
                     $notification = [
-                        'title' => "Incorrect format",
+                        'title' => "Incorrect format Exception code 0",
                         'body'  => "Information provided is not formatted correctly",
                         'type'  => "warning"
                     ];       
@@ -486,12 +487,13 @@ class CartController extends Controller
         $message = "";
         $exceptionCode = 0;
         $notification = [];
+        $paymentId = $request->input("MD");
 
-        //get session identifier from Redis, 
+        //get payment identifier from Cache, 
         //session cookie unavailable since we are here from a redirect by cardinity API              
-        $paymentId = Redis::get("payment_id");        
+        if (Cache::has($paymentId)) {
         
-        if($paymentId == $request->input("MD")){
+            Cache::forget($paymentId); //discard
             
             $PaRes = $request->input("PaRes");
 
@@ -549,7 +551,7 @@ class CartController extends Controller
             $outputIcon = "text-danger fa fa-exclamation-triangle";   
             $notification = [
                 'title' => "Something went wrong",
-                'body'  => "Payment ID mismatch",
+                'body'  => "Payment ID mismatch or expired",
                 'type'  => "danger"
             ];          
         }

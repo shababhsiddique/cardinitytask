@@ -13,9 +13,9 @@
                     <table class="table">
                         <thead class="thead-light">
                             <tr>
-                                <th style="width: 65%"> @lang('strings.cart.name')</th>
+                                <th style="width: 50%"> @lang('strings.cart.name')</th>
                                 <th style="width: 7%"> @lang('strings.cart.price') </th>
-                                <th style="width: 15%"> @lang('strings.cart.qty') </th>                            
+                                <th style="width: 20%"> @lang('strings.cart.qty') </th>                            
                                 <th style="width: 7%"> @lang('strings.cart.subtotal') </th>
                                 <th style="width: 6%">  </th>
                             </tr>
@@ -26,7 +26,7 @@
                                         <strong>{{$product->name}}</strong>{{$product->id}}
                                     </td>
                                     <td>
-                                        {{$product->price}}
+                                        {{number_format($product->price, 0)}}
                                     </td>
                                     <td>
                                         <input type="hidden" name="rowId[]" value="{{$product->id}}" />
@@ -37,7 +37,7 @@
                                         </small>
                                     </td>
                                     <td>
-                                    <strong>{{$product->getPriceSum()}}</strong>
+                                    <strong>{{number_format($product->getPriceSum(), 0)}}</strong>
                                     </td>
                                     <td>
                                         <a href="{{url('cart/remove/'.$product->id)}}" class="btn btn-link" type="button">

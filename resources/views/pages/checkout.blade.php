@@ -25,13 +25,13 @@
                                         {{$product->name}}
                                     </td>
                                     <td>
-                                        {{$product->price}}
+                                        {{number_format($product->price, 0)}}
                                     </td>
                                     <td>
                                         {{$product->quantity}}
                                     </td>
                                     <td class="text-right">
-                                        {{$product->getPriceSum()}}
+                                        {{number_format($product->getPriceSum(), 0)}}
                                     </td>
                                 </tr>
                             @endforeach  

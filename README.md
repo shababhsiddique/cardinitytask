@@ -4,7 +4,11 @@ This simple shopping cart application was built as part of a test for Cardinity 
 
 Techonoly used
 - Laravel 7.26.1
-- PHP 7.25
+- PHP 7.4
+- mySql 5.7
+
+Server
+- Homestead 10.0 (Ubuntu 20.04)
 
 ## Requirements fulfilled
 

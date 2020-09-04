@@ -20,16 +20,23 @@ class CartController extends Controller
 
     //build common layout components
     public function __construct()
-    {
-        $this->layout['notification'] = view('common.notification');        
+    {       
+
+        $this->layout['notification'] = view('common.notification');
+        $this->layout['menu'] = view("common.menu");
     }
 
 
     public function index()
     {
-
+ 
         $items = Cart::getContent();
-        
+
+
+        //menu count
+        $count =  Cart::getTotalQuantity();
+        $this->layout['menu']->with('cartCount',$count);
+
         //Load Component
         $this->layout['content'] = view('pages.cart')
             ->with('cartProducts', $items)

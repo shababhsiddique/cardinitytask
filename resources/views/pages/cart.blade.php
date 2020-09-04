@@ -13,11 +13,11 @@
                     <table class="table">
                         <thead class="thead-light">
                             <tr>
-                                <th class="col-6"> @lang('strings.cart.name')</th>
-                                <th class="col-1"> @lang('strings.cart.price') </th>
-                                <th class="col-2"> @lang('strings.cart.qty') </th>                            
-                                <th class="col-1"> @lang('strings.cart.subtotal') </th>
-                                <th class="col-1">  </th>
+                                <th style="width: 65%"> @lang('strings.cart.name')</th>
+                                <th style="width: 7%"> @lang('strings.cart.price') </th>
+                                <th style="width: 15%"> @lang('strings.cart.qty') </th>                            
+                                <th style="width: 7%"> @lang('strings.cart.subtotal') </th>
+                                <th style="width: 6%">  </th>
                             </tr>
                         </thead>
                             @foreach ($cartProducts as $product)                

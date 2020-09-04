@@ -23,7 +23,7 @@ class CartController extends Controller
     {       
 
         $this->layout['notification'] = view('common.notification');
-        $this->layout['menu'] = view("common.menu");
+        $this->layout['menu'] = view("common.menu")->with('cartCount', 0);
     }
 
 
@@ -177,7 +177,13 @@ class CartController extends Controller
     public function payment()
     {
 
+
         $items = Cart::getContent();
+        
+
+        //menu count
+        $count =  Cart::getTotalQuantity();
+        $this->layout['menu']->with('cartCount',$count);
 
         //Load Component
         $this->layout['content'] = view('pages.checkout')

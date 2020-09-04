@@ -58,7 +58,7 @@
                                 <div class="row">
                                     <div class="col-12">
                                         <label for="holder">@lang('strings.checkout.holder')</label>
-                                        <input type="text" id="holder" required name="holder" class="form-control" value="{{old('holder')}}" >                                
+                                        <input type="text" id="holder" required name="holder" class="form-control" value="{{old('holder','Shabab')}}" >                                
                                         @error('holder')
                                             <small class="text-danger">{{ $message }}</small>
                                         @enderror
@@ -71,7 +71,7 @@
                                     <div class="col-12">
                                         <label for="pan">@lang('strings.checkout.pan')</label>
                                         <div class="input-group mb-3">     
-                                            <input type="text" id="pan" required name="pan" class="form-control" value="{{old('pan')}}" >    
+                                            <input type="text" id="pan" required name="pan" class="form-control" value="{{old('pan', '5454545454545454')}}" >    
                                             <span id="card_type" class="input-group-text"></span>                            
                                         </div>
                                         @error('pan')
@@ -92,9 +92,9 @@
                                     <div class="col-6">
                                         <label for="date">@lang('strings.checkout.exp')</label>
                                         <div class="input-group mb-3">                                            
-                                            <input type="text" id="exp_month" placeholder="mm" required name="exp_month" class="form-control" value="{{old('exp_month')}}">                                            
+                                            <input type="text" id="exp_month" placeholder="mm" required name="exp_month" class="form-control" value="{{old('exp_month','12')}}">                                            
                                             <span class="input-group-text">/</span>
-                                            <input type="text" id="exp_year" placeholder="yyyy" required name="exp_year" class="form-control" value="{{old('exp_year')}}">                                        
+                                            <input type="text" id="exp_year" placeholder="yyyy" required name="exp_year" class="form-control" value="{{old('exp_year','2080')}}">                                        
                                         </div>   
                                         @error('exp_month')
                                                 <small class="text-danger">{{ $message }}</small>
@@ -105,7 +105,7 @@
                                     </div>           
                                     <div class="col-6">
                                         <label for="CVV">CVV</label>
-                                        <input type="text" name="cvv" required id="CVV" class="form-control" value="{{old('cvv')}}">
+                                        <input type="text" name="cvv" required id="CVV" class="form-control" value="{{old('cvv','512')}}">
                                         @error('cvv')
                                             <small class="text-danger">{{ $message }}</small>
                                         @enderror

@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\OrderProducts;
 use App\Models\Product;
+use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Cart;
@@ -198,6 +200,7 @@ class CartController extends Controller
     /**
      * Common operations used in different cases of purchase
      */
+
     private function cleanupAfterPayment(Request $request){
 
          //empty cart
@@ -207,8 +210,7 @@ class CartController extends Controller
 
          //flush and regenrate session
          $request->session()->flush();
-         $request->session()->regenerate();
-         
+         $request->session()->regenerate();         
         
         $request->session()->put('notification', array(
             'title' => "Success",
@@ -220,13 +222,11 @@ class CartController extends Controller
 
     public function paymentSubmit(Request $request)
     {
-
               
         $status = "";
         $outputIcon = ""; 
         $outputMessage = ""; 
-        $secure3dObj = [];  
-        
+        $secure3dObj = [];          
         $mainContent = "";
 
 
@@ -257,6 +257,9 @@ class CartController extends Controller
         $request->validate([
             'exp_month' => "required|numeric|min:$minMonth|max:12",
         ]);
+        //Validation END
+        
+
         
         //uniq string for id
         $uniqString =  (string) ( uniqid() .  md5(uniqid()) );                             
@@ -295,13 +298,37 @@ class CartController extends Controller
             $payment = $client->call($method);                                             
             $status = $payment->getStatus();
 
+
+            /**
+               * Create Order Start
+               */ 
+            $order = new Order;
+            $order->payment_id = $payment->getId();              
+            $order->amount = Cart::getTotal();
+            $order->status = "new";
+            $order->save();
+
+            //Generate list of product ids ordered.
+            $orderProducts = [];
+            foreach(Cart::getContent() as $aCartItem){
+                $orderProduct = new OrderProducts;
+                $orderProduct->order_id = $order->order_id; 
+                $orderProduct->product_id = $aCartItem->id;
+                $orderProduct->quantity = $aCartItem->quantity;
+                $orderProduct->save();       
+            }
+             /**
+             * Create order end
+             */
+
             
-            if($status == 'approved') {
+            if($status == 'approved') {                
 
               // Payment is approved
               $outputIcon = "text-success fa fa-check-circle-o";   
               $outputMessage = "Payment successful";   
-
+              $order->status = "approved";
+          
               //Common post purchase actions
               $this->cleanupAfterPayment($request);
 
@@ -316,27 +343,36 @@ class CartController extends Controller
                 // 3D-Secure authorization is required   \
                 $outputIcon =  "text-primary fa fa-cog";   
                 $outputMessage = "3DSecure action required";   
+                $order->status = "pending";
 
                 $url = $payment->getAuthorizationInformation()->getUrl();
                 $data = $payment->getAuthorizationInformation()->getData();                
 
                 $paymentId = $payment->getId();
-                Cache::put($paymentId, true, now()->addMinutes(5)); 
-                //Redis::set('payment_id', $paymentId);
 
+                 /**
+                  * Keep order info on cache for 3ds later
+                  */
+                Cache::put($paymentId, $order->order_id, now()->addMinutes(5)); 
+                
                 $secure3dObj = [
                     'Url3dSForm' => $payment->getAuthorizationInformation()->getUrl(),
                     'PaReq' => $payment->getAuthorizationInformation()->getData(),
                     'TermUrl' => url('/cart/pay/3dscallback'),                  
                     'identifier' => $paymentId,                  
                 ];
+                /**
+                 * 3ds end
+                 */
 
                 $mainContent = view('pages.secure3d')
                     ->with('output', $outputMessage)
                     ->with('icon', $outputIcon)
                     ->with('secure3dObj', $secure3dObj);
 
-            }                
+            }  
+            
+            $order->save();
         
         //Catch any possible exception
         } catch (\Cardinity\Exception\ValidationFailed $exception) {            
@@ -373,7 +409,7 @@ class CartController extends Controller
 
                     //invalid format re render form
                     $request->validate([
-                        'payment_instrument.fields'    => 'required',
+                        'exception_0'    => 'required',
                     ]);        
                     break;
                 
@@ -492,11 +528,11 @@ class CartController extends Controller
         //get payment identifier from Cache, 
         //session cookie unavailable since we are here from a redirect by cardinity API              
         if (Cache::has($paymentId)) {
-        
-            Cache::forget($paymentId); //discard
-            
-            $PaRes = $request->input("PaRes");
 
+            $orderId = Cache::pull($paymentId); 
+            $PaRes = $request->input("PaRes");
+            $order = Order::find($orderId);
+            
             //this is usual callback from cardinity API
             $client = Client::create([
                 'consumerKey' => env('CARDINITY_KEY'),
@@ -504,11 +540,15 @@ class CartController extends Controller
             ]);   
 
             //finalize payment 
-            $method = new Payment\Finalize($paymentId, $PaRes );            
+            $method = new Payment\Finalize($paymentId, $PaRes ); 
             
-            try {               
+            
+            try {      
                 
-                $payment = $client->call($method);
+                $client->call($method);
+
+                //finalize success time to update status                
+                $order->status = "approved";                
 
                 //common post purchase operations
                 $this->cleanupAfterPayment($request);  
@@ -521,9 +561,10 @@ class CartController extends Controller
                     'type'  => "success"
                 ];                
 
-            } catch (\Exception $exception) {    
-
-                //TODO
+            } catch (\Exception $exception) {     
+                
+                $order->status = "failed";
+                  
                 $exceptionCode =  $exception->getCode();     
                 switch ($exceptionCode) {
                     
@@ -541,11 +582,12 @@ class CartController extends Controller
                     'title' => "Exception occured",
                     'body'  =>  $message,
                     'type'  => "warning"
-                ];
-                
-
+                ];               
           
-            }   
+            }
+            
+            //whataver status we are in, save
+            $order->save();
             
         }else{
             $outputIcon = "text-danger fa fa-exclamation-triangle";   
@@ -556,8 +598,7 @@ class CartController extends Controller
             ];          
         }
 
-        $request->session()->put('notification', $notification);        
-
+        $request->session()->put('notification', $notification);     
         //return redirect('/');
 
 

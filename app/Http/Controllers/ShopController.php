@@ -32,7 +32,7 @@ class ShopController extends Controller
     Cart::clear();    
     Cart::session($cartKey)->clear();  */
 
-    $products = Product::all();
+    $products = Product::where('quantity','>',0)->get();
 
 
     //menu count

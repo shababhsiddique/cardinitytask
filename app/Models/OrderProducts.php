@@ -11,11 +11,11 @@ class OrderProducts extends Model
 
     
 
-    /*public function product()
+    public function product()
     {
         //Return the actual product obj
         return $this->hasOne('App\Models\OrderProducts', 'product_id', 'product_id');
-    }*/
+    }
     
     
 }

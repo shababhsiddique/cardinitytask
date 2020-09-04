@@ -310,12 +310,21 @@ class CartController extends Controller
 
             //Generate list of product ids ordered.
             $orderProducts = [];
-            foreach(Cart::getContent() as $aCartItem){
+            foreach(Cart::getContent() as $aCartItem){                    
+
+                //reduce quantity 
+                //TODO: realtime check if quantity has changed since add to cart;
+                $product = Product::find($aCartItem->id);                
+                $product->quantity = $product->quantity - $aCartItem->quantity;
+                $product->save();
+                
+                //create and assign order product
                 $orderProduct = new OrderProducts;
                 $orderProduct->order_id = $order->order_id; 
                 $orderProduct->product_id = $aCartItem->id;
                 $orderProduct->quantity = $aCartItem->quantity;
-                $orderProduct->save();       
+                $orderProduct->save();   
+            
             }
              /**
              * Create order end

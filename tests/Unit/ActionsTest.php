@@ -50,7 +50,9 @@ class ActionsTest extends TestCase
      */
     public function testSuccess(){    
 
-        $buyableProduct = Product::where('price', '<', 70)->first();
+        $buyableProduct = Product::where('price', '<', 70)
+                                    ->where('quantity','>',10)
+                                    ->first();
 
         //test card 1
         $response = $this->checkoutAction($buyableProduct, $this->testVisaPan);
@@ -68,7 +70,9 @@ class ActionsTest extends TestCase
      */
     public function testDeclined(){    
 
-        $unBuyableProduct = Product::where('price', '>', 75)->first(); 
+        $unBuyableProduct = Product::where('price', '>', 75)
+                                        ->where('quantity','>',10)
+                                        ->first();
 
         //test card 1
         $response = $this->checkoutAction($unBuyableProduct, $this->testVisaPan);
@@ -87,7 +91,9 @@ class ActionsTest extends TestCase
      */
     public function test3dsPass(){    
 
-        $buyableProduct = Product::where('price', '<', 70)->first();
+        $buyableProduct = Product::where('price', '<', 70)
+                                    ->where('quantity','>',10)
+                                    ->first();
 
         //this card will show the redirect HTML for 3ds validation
         $response = $this->checkoutAction($buyableProduct, $this->test3dsPassedPan);        
@@ -102,7 +108,9 @@ class ActionsTest extends TestCase
      */
     public function test3dsFail(){    
 
-        $buyableProduct = Product::where('price', '<', 70)->first();
+        $buyableProduct = Product::where('price', '<', 70)
+                                    ->where('quantity','>',10)
+                                    ->first();
 
         //this card will show the redirect HTML for 3ds validation
         $response = $this->checkoutAction($buyableProduct, $this->test3dsDeclinedPan);        

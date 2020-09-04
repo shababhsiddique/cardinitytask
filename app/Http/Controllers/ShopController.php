@@ -21,17 +21,10 @@ class ShopController extends Controller
   }
 
 
-  public function index(Request $request)
+  public function index()
   {
 
-    //keep track of cart by browser session
-    /*$cartKey = $request->session()->get('cart_key', function () {
-        return session('_token');
-    });
-    
-    Cart::clear();    
-    Cart::session($cartKey)->clear();  */
-
+    //fetch available products to display
     $products = Product::where('quantity','>',0)->get();
 
 

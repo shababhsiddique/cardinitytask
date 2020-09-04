@@ -29,13 +29,15 @@ class CartController extends Controller
     }
 
 
+    /**
+     * Show shopping cart
+     */
     public function index()
     {
  
         $items = Cart::getContent();
 
-
-        //menu count
+        //menu item counter
         $count =  Cart::getTotalQuantity();
         $this->layout['menu']->with('cartCount',$count);
 
@@ -48,6 +50,7 @@ class CartController extends Controller
         //return view
         return view('master', $this->layout);
     }
+
 
     //TODO: add over ajax
     public function add(Request $request, int $productId)
@@ -123,7 +126,6 @@ class CartController extends Controller
         //Prepare product models indexed by their id
         $products = Product::whereIn('product_id', $updateItemIds)->get()->keyBy('product_id');
 
-
         $numberOfItemsUpdated = 0;
         $numberOfItemsDeleted = 0;
 
@@ -158,7 +160,7 @@ class CartController extends Controller
             return redirect('/cart/pay');
         }
         
-        if($numberOfItemsUpdated+$numberOfItemsDeleted){
+        if($numberOfItemsUpdated || $numberOfItemsDeleted){
 
             $mBody = ( $numberOfItemsUpdated ? "$numberOfItemsUpdated rows updated " : "");
             $mBody .= ( $numberOfItemsDeleted ? "$numberOfItemsDeleted rows deleted" : "");
@@ -176,12 +178,13 @@ class CartController extends Controller
     }
 
 
+    /**
+     * Show payment form
+     */
     public function payment()
     {
 
-
-        $items = Cart::getContent();
-        
+        $items = Cart::getContent();        
 
         //menu count
         $count =  Cart::getTotalQuantity();
@@ -200,7 +203,6 @@ class CartController extends Controller
     /**
      * Common operations used in different cases of purchase
      */
-
     private function cleanupAfterPayment(Request $request){
 
          //empty cart
@@ -220,6 +222,9 @@ class CartController extends Controller
     }
     
 
+    /**
+     * Payment form POST action
+     */
     public function paymentSubmit(Request $request)
     {
               
@@ -520,6 +525,9 @@ class CartController extends Controller
 
 
 
+    /**
+     * api callback POST url
+     */
     public function paymentCallback(Request $request){
 
         //validate callback from API
